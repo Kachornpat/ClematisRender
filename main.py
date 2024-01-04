@@ -37,6 +37,7 @@ def browse_file():
 
 
 def render():
+    scroll_text["state"] = "normal"
     if os.path.exists(
         os.path.join(
             output_entry.get(),
@@ -45,6 +46,7 @@ def render():
     ):
         scroll_text.insert(tk.END, "--------- RENDER FINISH ---------\n")
         scroll_text.see("end")
+        scroll_text["state"] = "disabled"
         return
     # print(
     #     os.path.join(
@@ -105,8 +107,9 @@ def update_text(process):
     ):
         render()
         return
-    scroll_text.insert(tk.END, "--------- RENDER FINISH ---------")
+    scroll_text.insert(tk.END, "--------- RENDER FINISH ---------\n")
     scroll_text.see("end")
+    scroll_text["state"] = "disabled"
 
 
 def exit_prog():
@@ -144,6 +147,7 @@ find_file_btn.grid(row=4, column=1)
 scroll_text = ScrolledText(window, width=70, height=13)
 scroll_text.grid(row=5, column=0, columnspan=2, pady=7, padx=5)
 scroll_text.update_idletasks()
+scroll_text["state"] = "disabled"
 
 # exit
 exit_button = tk.Button(window, text="Exit", command=exit_prog, width=10)
