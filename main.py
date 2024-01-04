@@ -113,6 +113,7 @@ def update_text(process):
 
 
 def exit_prog():
+    process.kill()
     exit()
 
 
@@ -129,7 +130,7 @@ exe_label = tk.Label(window, text="Blender executable path")
 exe_label.grid(row=0, column=0, sticky=tk.W, padx=5)
 exe_entry = tk.Entry(window, width=75)
 exe_entry.grid(row=1, column=0)
-exe_entry.insert(0, "C:\Program Files\Blender Foundation\Blender 4.0\\blender")
+exe_entry.insert(0, "C:\Program Files\Blender Foundation\Blender 4.0/blender")
 
 find_exe_btn = tk.Button(window, text="Browse exe", command=browse_exe, width=10)
 find_exe_btn.grid(row=1, column=1)
@@ -158,7 +159,7 @@ render_button = tk.Button(window, text="Render", command=render, width=10)
 render_button.grid(row=6, column=0, sticky=tk.E, pady=5)
 
 # output folder
-output_label = tk.Label(window, text="Output path")
+output_label = tk.Label(window, text="Output folder")
 output_label.grid(row=7, column=0, sticky=tk.W, padx=5)
 output_entry = tk.Entry(window, width=75)
 output_entry.grid(row=8, column=0)
