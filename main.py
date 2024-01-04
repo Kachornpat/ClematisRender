@@ -37,6 +37,12 @@ def browse_file():
 
 
 def render():
+    # print(
+    #     os.path.join(
+    #         output_entry.get(),
+    #         "{:04d}".format(int(last_entry.get())) + format_entry.get(),
+    #     )
+    # )
     if not (exe_entry.get() or file_entry.get()):
         tk.messagebox.showwarning(
             title="Invalid file path",
@@ -83,9 +89,14 @@ def update_text(process):
         scroll_text.see("end")
 
     if not os.path.exists(
-        os.path.join(output_entry.get(), "{:04d}.png".format(int(last_entry.get())))
+        os.path.join(
+            output_entry.get(),
+            "{:04d}".format(int(last_entry.get())) + format_entry.get(),
+        )
     ):
         render()
+    scroll_text.insert(tk.END, "--------- RENDER FINISH ---------")
+    scroll_text.see("end")
 
 
 def exit_prog():
@@ -94,7 +105,7 @@ def exit_prog():
 
 window = tk.Tk()
 window.title("Clematis Render")
-window.geometry("560x455")
+window.geometry("560x510")
 window.resizable(0, 0)
 window.grid_columnconfigure(0, weight=3)
 window.grid_columnconfigure(1, weight=1)
@@ -146,6 +157,12 @@ last_label = tk.Label(window, text="Last frame number")
 last_label.grid(row=9, column=0, sticky=tk.W, padx=5)
 last_entry = tk.Entry(window)
 last_entry.grid(row=10, column=0, sticky=tk.W, padx=10)
+
+# format file
+format_label = tk.Label(window, text="format file")
+format_label.grid(row=11, column=0, sticky=tk.W, padx=5)
+format_entry = tk.Entry(window)
+format_entry.grid(row=12, column=0, sticky=tk.W, padx=10)
 
 
 window.mainloop()
