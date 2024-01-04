@@ -104,6 +104,7 @@ def update_text(process):
         )
     ):
         render()
+        return
     scroll_text.insert(tk.END, "--------- RENDER FINISH ---------")
     scroll_text.see("end")
 
