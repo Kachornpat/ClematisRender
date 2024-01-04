@@ -37,6 +37,15 @@ def browse_file():
 
 
 def render():
+    if os.path.exists(
+        os.path.join(
+            output_entry.get(),
+            "{:04d}".format(int(last_entry.get())) + format_entry.get(),
+        )
+    ):
+        scroll_text.insert(tk.END, "--------- RENDER FINISH ---------\n")
+        scroll_text.see("end")
+        return
     # print(
     #     os.path.join(
     #         output_entry.get(),
