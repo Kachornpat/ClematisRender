@@ -9,6 +9,13 @@ process = None
 update_th = None
 
 
+def browse_folder():
+    filename = filedialog.askdirectory()
+    if filename:
+        output_entry.delete(0, tk.END)
+        output_entry.insert(0, filename)
+
+
 def browse_exe():
     filename = filedialog.askopenfilename(
         title="Select Blender executable",
@@ -75,7 +82,10 @@ def update_text(process):
         scroll_text.insert(tk.END, output)
         scroll_text.see("end")
 
-    render()
+    if not os.path.exists(
+        os.path.join(output_entry.get(), "{:04d}.png".format(int(last_entry.get())))
+    ):
+        render()
 
 
 def exit_prog():
@@ -84,7 +94,7 @@ def exit_prog():
 
 window = tk.Tk()
 window.title("Clematis Render")
-window.geometry("560x355")
+window.geometry("560x455")
 window.resizable(0, 0)
 window.grid_columnconfigure(0, weight=3)
 window.grid_columnconfigure(1, weight=1)
@@ -121,5 +131,21 @@ exit_button.grid(row=6, column=1, pady=5)
 # render
 render_button = tk.Button(window, text="Render", command=render, width=10)
 render_button.grid(row=6, column=0, sticky=tk.E, pady=5)
+
+# output folder
+output_label = tk.Label(window, text="Output path")
+output_label.grid(row=7, column=0, sticky=tk.W, padx=5)
+output_entry = tk.Entry(window, width=75)
+output_entry.grid(row=8, column=0)
+
+find_output_btn = tk.Button(window, text="Browse", command=browse_folder, width=10)
+find_output_btn.grid(row=8, column=1)
+
+# last frame number
+last_label = tk.Label(window, text="Last frame number")
+last_label.grid(row=9, column=0, sticky=tk.W, padx=5)
+last_entry = tk.Entry(window)
+last_entry.grid(row=10, column=0, sticky=tk.W, padx=10)
+
 
 window.mainloop()
