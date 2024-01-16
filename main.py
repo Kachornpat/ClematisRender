@@ -68,9 +68,7 @@ def browse_file():
         file_entry.insert(0, filename)
 
 
-def render():
-    scroll_text["state"] = "normal"
-
+def result_exist():
     if last_entry.get() and os.path.exists(
         os.path.join(
             output_entry.get(),
@@ -83,10 +81,17 @@ def render():
         )
         scroll_text.see("end")
         scroll_text["state"] = "disabled"
-        return
+        return True
+    return False
 
+
+def render():
+    scroll_text["state"] = "normal"
+    if result_exist():
+        return
     scroll_text.insert(
-        tk.END, "-------------------------- START RENDER --------------------------\n"
+        tk.END,
+        "-------------------------- START RENDER --------------------------\n",
     )
 
     if not (exe_entry.get() or file_entry.get()):
@@ -131,6 +136,9 @@ def update_text(process):
             break
         scroll_text.insert(tk.END, output)
         scroll_text.see("end")
+
+    if not result_exist():
+        render()
 
 
 def exit_prog():
