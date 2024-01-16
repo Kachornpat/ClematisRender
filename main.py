@@ -4,9 +4,40 @@ from tkinter.scrolledtext import ScrolledText
 import subprocess
 import os
 import threading
+from configparser import ConfigParser
+
+CONFIG_FILE = "treebase.ini"
+
+format_dict = {
+    "BMP": ".bmp",
+    "Tris": ".rgb",
+    "PNG": ".png",
+    "JPEG": ".jpg",
+    "JPEG 2000": ".jp2",
+    "Targo": ".tga",
+    "Cineon": ".cin",
+    "DPX": ".dpx",
+    "OpenEXR": ".exr",
+    "Radiance HDR": ".hdr",
+    "TIFF": ".tif",
+    "WebP": ".webp",
+}
+
 
 process = None
 update_th = None
+
+parser = ConfigParser()
+parser.read(CONFIG_FILE)
+
+save_blender_path = parser.get("path", "blender_exe_path")
+save_output_format = parser.get("output", "output_format")
+
+
+def save_input(file_name, section, key, data):
+    parser.set(section, key, data)
+    with open(file_name, "w") as config_file:
+        parser.write(config_file)
 
 
 def browse_folder():
@@ -17,13 +48,14 @@ def browse_folder():
 
 
 def browse_exe():
-    filename = filedialog.askopenfilename(
+    exe_path = filedialog.askopenfilename(
         title="Select Blender executable",
         filetypes=(("Blender executable", "*.exe*"), ("All files", "*.*")),
     )
-    if filename:
+    if exe_path:
         exe_entry.delete(0, tk.END)
-        exe_entry.insert(0, filename)
+        exe_entry.insert(0, exe_path)
+        save_input(CONFIG_FILE, "path", "blender_exe_path", exe_path)
 
 
 def browse_file():
@@ -38,22 +70,25 @@ def browse_file():
 
 def render():
     scroll_text["state"] = "normal"
-    if os.path.exists(
+
+    if last_entry.get() and os.path.exists(
         os.path.join(
             output_entry.get(),
-            "{:04d}".format(int(last_entry.get())) + format_entry.get(),
+            "{:04d}".format(int(last_entry.get())) + format_dict.get(option_var.get()),
         )
     ):
-        scroll_text.insert(tk.END, "--------- RENDER FINISH ---------\n")
+        scroll_text.insert(
+            tk.END,
+            "------------------------- RENDER FINISH --------------------------\n",
+        )
         scroll_text.see("end")
         scroll_text["state"] = "disabled"
         return
-    # print(
-    #     os.path.join(
-    #         output_entry.get(),
-    #         "{:04d}".format(int(last_entry.get())) + format_entry.get(),
-    #     )
-    # )
+
+    scroll_text.insert(
+        tk.END, "-------------------------- START RENDER --------------------------\n"
+    )
+
     if not (exe_entry.get() or file_entry.get()):
         tk.messagebox.showwarning(
             title="Invalid file path",
@@ -92,34 +127,25 @@ def render():
 def update_text(process):
     while True:
         output = process.stdout.readline()
-        # print(process.poll())
         if output == b"" and process.poll() is not None:
             break
-        # print(output.decode().replace("\n", ""))
         scroll_text.insert(tk.END, output)
         scroll_text.see("end")
 
-    if not os.path.exists(
-        os.path.join(
-            output_entry.get(),
-            "{:04d}".format(int(last_entry.get())) + format_entry.get(),
-        )
-    ):
-        render()
-        return
-    scroll_text.insert(tk.END, "--------- RENDER FINISH ---------\n")
-    scroll_text.see("end")
-    scroll_text["state"] = "disabled"
-
 
 def exit_prog():
-    process.kill()
+    if process:
+        process.kill()
     exit()
+
+
+def format_option_change(data):
+    save_input(CONFIG_FILE, "output", "output_format", data)
 
 
 window = tk.Tk()
 window.title("Clematis Render")
-window.geometry("560x510")
+window.geometry("560x500")
 window.resizable(0, 0)
 window.grid_columnconfigure(0, weight=3)
 window.grid_columnconfigure(1, weight=1)
@@ -130,7 +156,7 @@ exe_label = tk.Label(window, text="Blender executable path")
 exe_label.grid(row=0, column=0, sticky=tk.W, padx=5)
 exe_entry = tk.Entry(window, width=75)
 exe_entry.grid(row=1, column=0)
-exe_entry.insert(0, "C:\Program Files\Blender Foundation\Blender 4.0/blender")
+exe_entry.insert(0, save_blender_path)
 
 find_exe_btn = tk.Button(window, text="Browse exe", command=browse_exe, width=10)
 find_exe_btn.grid(row=1, column=1)
@@ -150,34 +176,38 @@ scroll_text.grid(row=5, column=0, columnspan=2, pady=7, padx=5)
 scroll_text.update_idletasks()
 scroll_text["state"] = "disabled"
 
-# exit
-exit_button = tk.Button(window, text="Exit", command=exit_prog, width=10)
-exit_button.grid(row=6, column=1, pady=5)
-
-# render
-render_button = tk.Button(window, text="Render", command=render, width=10)
-render_button.grid(row=6, column=0, sticky=tk.E, pady=5)
-
 # output folder
 output_label = tk.Label(window, text="Output folder")
-output_label.grid(row=7, column=0, sticky=tk.W, padx=5)
-output_entry = tk.Entry(window, width=75)
-output_entry.grid(row=8, column=0)
+output_label.grid(row=6, column=0, sticky=tk.W, padx=5)
 
+output_entry = tk.Entry(window, width=75)
+output_entry.grid(row=7, column=0)
 find_output_btn = tk.Button(window, text="Browse", command=browse_folder, width=10)
-find_output_btn.grid(row=8, column=1)
+find_output_btn.grid(row=7, column=1)
 
 # last frame number
 last_label = tk.Label(window, text="Last frame number")
-last_label.grid(row=9, column=0, sticky=tk.W, padx=5)
+last_label.grid(row=8, column=0, sticky=tk.W, padx=5)
 last_entry = tk.Entry(window)
-last_entry.grid(row=10, column=0, sticky=tk.W, padx=10)
+last_entry.grid(row=9, column=0, sticky=tk.W, padx=10)
 
 # format file
-format_label = tk.Label(window, text="format file")
-format_label.grid(row=11, column=0, sticky=tk.W, padx=5)
-format_entry = tk.Entry(window)
-format_entry.grid(row=12, column=0, sticky=tk.W, padx=10)
+format_label = tk.Label(window, text="Output format")
+format_label.grid(row=10, column=0, sticky=tk.W, padx=5)
+
+option_var = tk.StringVar(window, value=save_output_format)
+format_dropdown = tk.OptionMenu(
+    window, option_var, *format_dict.keys(), command=format_option_change
+)
+format_dropdown.grid(row=11, column=0, sticky=tk.W, padx=10)
+
+# exit
+exit_button = tk.Button(window, text="Exit", command=exit_prog, width=10)
+exit_button.grid(row=12, column=1, pady=5)
+
+# render
+render_button = tk.Button(window, text="Render", command=render, width=10)
+render_button.grid(row=12, column=0, sticky=tk.E, pady=5)
 
 
 window.mainloop()
