@@ -150,7 +150,7 @@ window.resizable(0, 0)
 window.grid_columnconfigure(0, weight=3)
 window.grid_columnconfigure(1, weight=1)
 window.update_idletasks()
-icon = tk.PhotoImage(file="clemetis.png")
+icon = tk.PhotoImage(file="clematis.png")
 window.iconphoto(True, icon)
 
 
