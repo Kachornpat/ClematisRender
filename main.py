@@ -90,36 +90,44 @@ def format_option_change(data):
 
 
 def render():
-    if not (exe_entry.get() or file_entry.get()):
+    if not (exe_entry.get()):
         tk.messagebox.showwarning(
             title="Invalid file path",
-            message="Please enter Blender executable/file path",
+            message="Please enter Blender executable path",
         )
         return
 
-    if not (os.path.exists(exe_entry.get()) or os.path.exists(file_entry.get())):
+    elif not (file_entry.get()):
+        tk.messagebox.showwarning(
+            title="Invalid file path",
+            message="Please enter Blender file path",
+        )
+        return
+
+    elif not (os.path.exists(exe_entry.get()) or os.path.exists(file_entry.get())):
         tk.messagebox.showwarning(
             title="Invalid file path",
             message="Blender executable/file path doesn't exist",
         )
         return
 
-    if not (output_entry.get()):
+    elif not (output_entry.get()):
         tk.messagebox.showwarning(
             title="No output directory",
             message="Please enter the path of render output",
         )
         return
 
-    if not (end_entry.get()):
+    elif not (start_entry.get() or end_entry.get()):
         tk.messagebox.showwarning(
-            title="Last Frame not found",
-            message="Please enter the number of the last frame",
+            title="Frame number not found",
+            message="Please enter the number of the start-end frame",
         )
         return
 
     scroll_text["state"] = "normal"
     scroll_text.insert(tk.END, "Start...\n")
+    scroll_text["state"] = "disabled"
 
     command = []
     command.append("@echo off\n")
@@ -175,9 +183,10 @@ def update_text():
         output = process.stdout.readline()
         if output == b"" and process.poll() is not None:
             break
+        scroll_text["state"] = "normal"
         scroll_text.insert(tk.END, output)
         scroll_text.see("end")
-    scroll_text["state"] = "disabled"
+        scroll_text["state"] = "disabled"
 
 
 def exit_prog():
@@ -190,8 +199,6 @@ window = tk.Tk()
 window.title("Clematis Render")
 window.geometry("560x505")
 window.resizable(0, 0)
-# window.grid_columnconfigure(0, weight=3)
-# window.grid_columnconfigure(1, weight=1)
 window.update_idletasks()
 icon = tk.PhotoImage(file="clematis.png")
 window.iconphoto(True, icon)
