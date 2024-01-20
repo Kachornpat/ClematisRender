@@ -25,7 +25,6 @@ format_dict = {
 
 
 process = None
-update_th = None
 
 parser = ConfigParser()
 parser.read(CONFIG_FILE)
@@ -62,38 +61,14 @@ def browse_file():
     filename = filedialog.askopenfilename(
         title="Select Blender File",
         filetypes=(("Blender Files", "*.blend*"), ("All files", "*.*")),
+        initialdir="C:",
     )
     if filename:
         file_entry.delete(0, tk.END)
         file_entry.insert(0, filename)
 
 
-def result_exist():
-    if last_entry.get() and os.path.exists(
-        os.path.join(
-            output_entry.get(),
-            "{:04d}".format(int(last_entry.get())) + format_dict.get(option_var.get()),
-        )
-    ):
-        scroll_text.insert(
-            tk.END,
-            "------------------------- RENDER FINISH --------------------------\n",
-        )
-        scroll_text.see("end")
-        scroll_text["state"] = "disabled"
-        return True
-    return False
-
-
 def render():
-    scroll_text["state"] = "normal"
-    if result_exist():
-        return
-    scroll_text.insert(
-        tk.END,
-        "-------------------------- START RENDER --------------------------\n",
-    )
-
     if not (exe_entry.get() or file_entry.get()):
         tk.messagebox.showwarning(
             title="Invalid file path",
@@ -108,37 +83,61 @@ def render():
         )
         return
 
+    command = []
+    command.append("@echo off\n")
+    command.append(":start_render\n")
+    command.append(
+        'IF EXIST "{}" (\n'.format(
+            output_entry.get()
+            + "/"
+            + "{:04d}".format(int(last_entry.get()))
+            + format_dict.get(option_var.get()),
+        )
+    )
+    command.append(
+        "    ECHO ------------------------- RENDER FINISH --------------------------\n"
+    )
+    command.append("    PAUSE\n")
+    command.append("    EXIT\n")
+    command.append(")\n")
+    command.append(
+        '"{}" -b "{}" -a\n'.format(
+            exe_entry.get().replace("\x08", r"\b"),
+            file_entry.get().replace("\x08", r"\b"),
+        )
+    )
+    # command.append("TIMEOUT /T 10\n")
+    command.append("GOTO:start_render\n")
+
+    with open("render.bat", "w") as f:
+        f.write("".join(command))
+
     try:
         global process
-        global update_th
         process = subprocess.Popen(
-            [
-                exe_entry.get().replace("\x08", r"\b"),
-                "-b",
-                file_entry.get().replace("\x08", r"\b"),
-                "-a",
-            ],
+            ["render.bat"],
             shell=False,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
         )
-        update_th = threading.Thread(target=update_text, args=(process,))
+
+        update_th = threading.Thread(target=update_text)
+        update_th.daemon = True
         update_th.start()
 
     except Exception as e:
         print(e)
 
 
-def update_text(process):
+def update_text():
+    scroll_text["state"] = "normal"
     while True:
         output = process.stdout.readline()
         if output == b"" and process.poll() is not None:
             break
         scroll_text.insert(tk.END, output)
         scroll_text.see("end")
-
-    if not result_exist():
-        render()
+    scroll_text["state"] = "disabled"
 
 
 def exit_prog():
@@ -160,6 +159,15 @@ window.grid_columnconfigure(1, weight=1)
 window.update_idletasks()
 icon = tk.PhotoImage(file="clematis.png")
 window.iconphoto(True, icon)
+
+# menu bar
+menubar = tk.Menu(window)
+window.config(menu=menubar)
+
+# create a menu
+setting_menu = tk.Menu(menubar, tearoff=False)
+setting_menu.add_command(label="Project folder", command=lambda: print("test"))
+menubar.add_cascade(label="Setting", menu=setting_menu)
 
 
 # Blender executable
