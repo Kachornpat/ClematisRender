@@ -9,18 +9,18 @@ from configparser import ConfigParser
 CONFIG_FILE = "treebase.ini"
 
 format_dict = {
-    "BMP": ".bmp",
-    "Tris": ".rgb",
-    "PNG": ".png",
-    "JPEG": ".jpg",
-    "JPEG 2000": ".jp2",
-    "Targo": ".tga",
-    "Cineon": ".cin",
-    "DPX": ".dpx",
-    "OpenEXR": ".exr",
-    "Radiance HDR": ".hdr",
-    "TIFF": ".tif",
-    "WebP": ".webp",
+    "BMP": (".bmp", "BMP"),
+    "Iris": (".rgb", "IRIS"),
+    "PNG": (".png", "PNG"),
+    "JPEG": (".jpg", "JPEG"),
+    "JPEG 2000": (".jp2", "JP2"),
+    "Targo": (".tga", "TGA"),
+    "Cineon": (".cin", "CINEON"),
+    "DPX": (".dpx", "DPX"),
+    "OpenEXR": (".exr", "OPEN_EXR"),
+    "Radiance HDR": (".hdr", "HDR"),
+    "TIFF": (".tif", "TIFF"),
+    "WebP": (".webp", "WEBP"),
 }
 
 
@@ -111,7 +111,7 @@ def render():
         )
         return
 
-    if not (last_entry.get()):
+    if not (end_entry.get()):
         tk.messagebox.showwarning(
             title="Last Frame not found",
             message="Please enter the number of the last frame",
@@ -128,20 +128,24 @@ def render():
         'IF EXIST "{}" (\n'.format(
             output_entry.get()
             + "/"
-            + "{:04d}".format(int(last_entry.get()))
-            + format_dict.get(option_var.get()),
+            + "{:04d}".format(int(end_entry.get()))
+            + format_dict.get(format_var.get())[0],
         )
     )
     command.append(
-        "    ECHO ------------------------- RENDER FINISH --------------------------\n"
+        "    ECHO ------------------------ RENDER FINISH --------------------------\n"
     )
     command.append("    PAUSE\n")
     command.append("    EXIT\n")
     command.append(")\n")
     command.append(
-        '"{}" -b "{}" -a\n'.format(
+        '"{}" -b "{}" -o {}/ -F {} -s {} -e {} -a\n'.format(
             exe_entry.get().replace("\x08", r"\b"),
             file_entry.get().replace("\x08", r"\b"),
+            output_entry.get(),
+            format_dict.get(format_var.get())[1],
+            int(start_entry.get()),
+            int(end_entry.get()),
         )
     )
     command.append("GOTO:start_render\n")
@@ -184,10 +188,10 @@ def exit_prog():
 
 window = tk.Tk()
 window.title("Clematis Render")
-window.geometry("560x520")
+window.geometry("560x505")
 window.resizable(0, 0)
-window.grid_columnconfigure(0, weight=3)
-window.grid_columnconfigure(1, weight=1)
+# window.grid_columnconfigure(0, weight=3)
+# window.grid_columnconfigure(1, weight=1)
 window.update_idletasks()
 icon = tk.PhotoImage(file="clematis.png")
 window.iconphoto(True, icon)
@@ -199,12 +203,12 @@ exe_label.grid(row=0, column=0, sticky=tk.W, padx=5)
 exe_sv = tk.StringVar()
 exe_sv.trace_add("write", exe_callback)
 
-exe_entry = tk.Entry(window, width=75, textvariable=exe_sv)
-exe_entry.grid(row=1, column=0)
+exe_entry = tk.Entry(window, width=60, textvariable=exe_sv)
+exe_entry.grid(row=1, column=0, columnspan=2)
 exe_entry.insert(0, save_blender_path)
 
 find_exe_btn = tk.Button(window, text="Browse exe", command=browse_exe, width=10)
-find_exe_btn.grid(row=1, column=1)
+find_exe_btn.grid(row=1, column=2)
 
 # Project folder
 project_label = tk.Label(window, text="Project folder")
@@ -214,29 +218,29 @@ project_label.grid(row=2, column=0, sticky=tk.W, padx=5)
 project_sv = tk.StringVar()
 project_sv.trace_add("write", project_entry_callback)
 
-project_entry = tk.Entry(window, width=75, textvariable=project_sv)
-project_entry.grid(row=3, column=0)
+project_entry = tk.Entry(window, width=60, textvariable=project_sv)
+project_entry.grid(row=3, column=0, columnspan=2)
 project_entry.insert(0, save_project_path)
 
 find_project_btn = tk.Button(
     window, text="Browse folder", command=browse_project_folder, width=10
 )
-find_project_btn.grid(row=3, column=1, padx=5)
+find_project_btn.grid(row=3, column=2, padx=5)
 
 # Blender file
 file_label = tk.Label(window, text="Blender file")
 file_label.grid(row=4, column=0, sticky=tk.W, padx=5)
-file_entry = tk.Entry(window, width=75)
-file_entry.grid(row=5, column=0)
+file_entry = tk.Entry(window, width=60)
+file_entry.grid(row=5, column=0, columnspan=2)
 
 find_file_btn = tk.Button(
     window, text="Browse file", command=browse_blender_file, width=10
 )
-find_file_btn.grid(row=5, column=1, padx=5)
+find_file_btn.grid(row=5, column=2, padx=5)
 
 # # scrolltext
-scroll_text = ScrolledText(window, width=70, height=13)
-scroll_text.grid(row=6, column=0, columnspan=2, pady=7, padx=5)
+scroll_text = ScrolledText(window, width=65, height=13)
+scroll_text.grid(row=6, column=0, columnspan=3, pady=7, padx=5)
 scroll_text.update_idletasks()
 scroll_text["state"] = "disabled"
 
@@ -244,34 +248,39 @@ scroll_text["state"] = "disabled"
 output_label = tk.Label(window, text="Output folder")
 output_label.grid(row=7, column=0, sticky=tk.W, padx=5)
 
-output_entry = tk.Entry(window, width=75)
-output_entry.grid(row=8, column=0)
+output_entry = tk.Entry(window, width=60)
+output_entry.grid(row=8, column=0, columnspan=2)
 find_output_btn = tk.Button(window, text="Browse", command=browse_folder, width=10)
-find_output_btn.grid(row=8, column=1)
+find_output_btn.grid(row=8, column=2)
+
+# start frame number
+start_label = tk.Label(window, text="Start Frame")
+start_label.grid(row=9, column=0, padx=5)
+start_entry = tk.Entry(window, width=25)
+start_entry.grid(row=10, column=0, padx=5)
 
 # last frame number
-last_label = tk.Label(window, text="Last frame number")
-last_label.grid(row=9, column=0, sticky=tk.W, padx=5)
-last_entry = tk.Entry(window)
-last_entry.grid(row=10, column=0, sticky=tk.W, padx=5)
+last_label = tk.Label(window, text="End Frame")
+last_label.grid(row=9, column=1, padx=5)
+end_entry = tk.Entry(window, width=25)
+end_entry.grid(row=10, column=1, padx=5)
 
 # format file
 format_label = tk.Label(window, text="Output format")
-format_label.grid(row=11, column=0, sticky=tk.W, padx=5)
+format_label.grid(row=9, column=2, padx=5)
 
-option_var = tk.StringVar(window, value=save_output_format)
+format_var = tk.StringVar(window, value=save_output_format)
 format_dropdown = tk.OptionMenu(
-    window, option_var, *format_dict.keys(), command=format_option_change
+    window, format_var, *format_dict.keys(), command=format_option_change
 )
-format_dropdown.grid(row=12, column=0, sticky=tk.W, padx=5)
-
-# exit
-exit_button = tk.Button(window, text="Exit", command=exit_prog, width=10)
-exit_button.grid(row=12, column=1, pady=5)
+format_dropdown.grid(row=10, column=2, padx=5)
 
 # render
-render_button = tk.Button(window, text="Render", command=render, width=10)
-render_button.grid(row=12, column=0, sticky=tk.E, pady=5)
+render_button = tk.Button(window, text="Render", command=render, width=15)
+render_button.grid(row=12, column=1, pady=5, sticky=tk.E)
 
+# exit
+exit_button = tk.Button(window, text="Exit", command=exit_prog, width=15)
+exit_button.grid(row=12, column=2, pady=5)
 
 window.mainloop()
