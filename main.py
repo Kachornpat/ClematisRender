@@ -90,35 +90,28 @@ def format_option_change(data):
 
 
 def render():
-    if not (exe_entry.get()):
+    if not ((exe_entry.get()) and os.path.exists(exe_entry.get())):
         tk.messagebox.showwarning(
-            title="Invalid file path",
-            message="Please enter Blender executable path",
+            title="Path Error",
+            message="Invalid executable file path",
         )
         return
 
-    elif not (file_entry.get()):
+    elif not ((file_entry.get()) and os.path.exists(file_entry.get())):
         tk.messagebox.showwarning(
-            title="Invalid file path",
-            message="Please enter Blender file path",
+            title="Path Error",
+            message="Invalid Blender file path",
         )
         return
 
-    elif not (os.path.exists(exe_entry.get()) or os.path.exists(file_entry.get())):
-        tk.messagebox.showwarning(
-            title="Invalid file path",
-            message="Blender executable/file path doesn't exist",
-        )
-        return
-
-    elif not (output_entry.get()):
+    if not (output_entry.get()):
         tk.messagebox.showwarning(
             title="No output directory",
             message="Please enter the path of render output",
         )
         return
 
-    elif not (start_entry.get() or end_entry.get()):
+    if not (start_entry.get() or end_entry.get()):
         tk.messagebox.showwarning(
             title="Frame number not found",
             message="Please enter the number of the start-end frame",
