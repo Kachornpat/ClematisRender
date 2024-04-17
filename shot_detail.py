@@ -18,47 +18,34 @@ class ShotDetail(tk.Toplevel):
         self.resizable(0, 0)
         self.grab_set()
 
-        # Shot name
+        self.create_shot_name_entry()
+        self.create_blender_file_entry()
+        self.create_output_folder_entry()
+        self.create_start_to_end_frame_entry()
+        self.create_file_format_dropdown()
+
+        # submit
+        submit_button = tk.Button(self, text="Submit", command=self.submit)
+        submit_button.grid(row=8, column=0, padx=5, sticky="nesw", columnspan=2, pady=5)
+
+        # close
+        cancel_button = tk.Button(self, text="Close", command=self.destroy)
+        cancel_button.grid(row=8, column=2, sticky="nesw", padx=2, pady=5)
+
+        if self.data:
+            self.shot_entry.insert(0, self.data["name"])
+            self.file_entry.insert(0, self.data["file_name"])
+            self.start_entry.insert(0, self.data["start_frame"])
+            self.end_entry.insert(0, self.data["end_frame"])
+            self.output_entry.insert(0, self.data["output_folder"])
+
+    def create_shot_name_entry(self):
         shot_label = tk.Label(self, text="Shot name")
         shot_label.grid(row=0, column=0, sticky=tk.W, padx=5)
         self.shot_entry = tk.Entry(self, width=60)
         self.shot_entry.grid(row=1, column=0, columnspan=2, padx=(5, 0))
 
-        # Blender file
-        file_label = tk.Label(self, text="Blender file")
-        file_label.grid(row=2, column=0, sticky=tk.W, padx=5)
-        self.file_entry = tk.Entry(self, width=60)
-        self.file_entry.grid(row=3, column=0, columnspan=2, padx=(5, 0))
-
-        find_file_btn = tk.Button(
-            self, text="Browse file", command=self.browse_blender_file, width=10
-        )
-        find_file_btn.grid(row=3, column=2, padx=5)
-
-        # # output folder
-        output_label = tk.Label(self, text="Output folder")
-        output_label.grid(row=4, column=0, sticky=tk.W, padx=5)
-
-        self.output_entry = tk.Entry(self, width=60)
-        self.output_entry.grid(row=5, column=0, columnspan=2, padx=(5, 0))
-        find_output_btn = tk.Button(
-            self, text="Browse", command=self.browse_folder, width=10
-        )
-        find_output_btn.grid(row=5, column=2)
-
-        # start frame number
-        start_label = tk.Label(self, text="Start Frame")
-        start_label.grid(row=6, column=0)
-        self.start_entry = tk.Entry(self, width=25)
-        self.start_entry.grid(row=7, column=0)
-
-        # last frame number
-        last_label = tk.Label(self, text="End Frame")
-        last_label.grid(row=6, column=1)
-        self.end_entry = tk.Entry(self, width=25)
-        self.end_entry.grid(row=7, column=1)
-
-        # format file
+    def create_file_format_dropdown(self):
         format_label = tk.Label(self, text="Output format")
         format_label.grid(row=6, column=2)
 
@@ -78,20 +65,40 @@ class ShotDetail(tk.Toplevel):
         )
         format_dropdown.grid(row=7, column=2, sticky="nesw")
 
-        # submit
-        submit_button = tk.Button(self, text="Submit", command=self.submit)
-        submit_button.grid(row=8, column=0, padx=5, sticky="nesw", columnspan=2, pady=5)
+    def create_blender_file_entry(self):
+        file_label = tk.Label(self, text="Blender file")
+        file_label.grid(row=2, column=0, sticky=tk.W, padx=5)
+        self.file_entry = tk.Entry(self, width=60)
+        self.file_entry.grid(row=3, column=0, columnspan=2, padx=(5, 0))
 
-        # cancel
-        cancel_button = tk.Button(self, text="Cancel", command=self.destroy)
-        cancel_button.grid(row=8, column=2, sticky="nesw", padx=2, pady=5)
+        find_file_btn = tk.Button(
+            self, text="Browse file", command=self.browse_blender_file, width=10
+        )
+        find_file_btn.grid(row=3, column=2, padx=5)
 
-        if self.data:
-            self.shot_entry.insert(0, self.data["name"])
-            self.file_entry.insert(0, self.data["file_name"])
-            self.start_entry.insert(0, self.data["start_frame"])
-            self.end_entry.insert(0, self.data["end_frame"])
-            self.output_entry.insert(0, self.data["output_folder"])
+    def create_start_to_end_frame_entry(self):
+        # start frame number
+        start_label = tk.Label(self, text="Start Frame")
+        start_label.grid(row=6, column=0)
+        self.start_entry = tk.Entry(self, width=25)
+        self.start_entry.grid(row=7, column=0)
+
+        # last frame number
+        last_label = tk.Label(self, text="End Frame")
+        last_label.grid(row=6, column=1)
+        self.end_entry = tk.Entry(self, width=25)
+        self.end_entry.grid(row=7, column=1)
+
+    def create_output_folder_entry(self):
+        output_label = tk.Label(self, text="Output folder")
+        output_label.grid(row=4, column=0, sticky=tk.W, padx=5)
+
+        self.output_entry = tk.Entry(self, width=60)
+        self.output_entry.grid(row=5, column=0, columnspan=2, padx=(5, 0))
+        find_output_btn = tk.Button(
+            self, text="Browse", command=self.browse_folder, width=10
+        )
+        find_output_btn.grid(row=5, column=2)
 
     def browse_blender_file(self):
         filename = filedialog.askopenfilename(
@@ -110,6 +117,9 @@ class ShotDetail(tk.Toplevel):
             self.output_entry.insert(0, filename)
 
     def submit(self):
+        if not self.check():
+            return
+
         if self.data:
             self.master.edit_shot_detail(
                 self.data["selected_item"],
@@ -124,7 +134,19 @@ class ShotDetail(tk.Toplevel):
                 self.output_entry.get(),
                 self.format_var.get(),
             )
+            self.destroy()
         else:
+            for item in self.master.tree.get_children():
+                if self.master.tree.item(item)["values"][4] == self.output_entry.get():
+                    tk.messagebox.showwarning(
+                        title="Output directory Error",
+                        message=(
+                            "This output path already used by Shot:"
+                            " {}, "
+                            "please use the other output path"
+                        ).format(self.master.tree.item(item)["values"][0]),
+                    )
+                    return
             self.master.add_new_shot(
                 (
                     self.shot_entry.get()
@@ -137,7 +159,12 @@ class ShotDetail(tk.Toplevel):
                 self.output_entry.get(),
                 self.format_var.get(),
             )
-        self.destroy()
+            self.shot_entry.delete(0, "end")
+            self.file_entry.delete(0, "end")
+            self.start_entry.delete(0, "end")
+            self.end_entry.delete(0, "end")
+            self.output_entry.delete(0, "end")
+            self.format_var.set("PNG")
 
     def check(self):
         if not ((self.file_entry.get()) and os.path.exists(self.file_entry.get())):
@@ -145,18 +172,20 @@ class ShotDetail(tk.Toplevel):
                 title="Path Error",
                 message="Invalid Blender file path",
             )
-            return
+            return False
 
         if not (self.output_entry.get()):
             tk.messagebox.showwarning(
                 title="No output directory",
                 message="Please enter the path of render output",
             )
-            return
+            return False
 
         if not (self.start_entry.get() or self.end_entry.get()):
             tk.messagebox.showwarning(
                 title="Frame number not found",
                 message="Please enter the number of the start-end frame",
             )
-            return
+            return False
+
+        return True

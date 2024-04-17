@@ -2,9 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
 from tkinter.scrolledtext import ScrolledText
-import subprocess
 import os
-import threading
 from configparser import ConfigParser
 
 from shot_detail import ShotDetail
@@ -41,7 +39,7 @@ class ClematisRender(tk.Tk):
         self.save_project_path = parser.get("path", "blender_project_path")
         self.save_output_format = parser.get("output", "output_format")
         self.title("Clematis Render")
-        self.geometry("800x700")
+        self.geometry("800x490")
         self.update_idletasks()
         self.iconphoto(True, tk.PhotoImage(file="clematis.png"))
         self.grid_columnconfigure(0, weight=1)
@@ -51,12 +49,14 @@ class ClematisRender(tk.Tk):
         self.create_shot_treeview()
         self.create_console_log()
 
-        # render
-        render_button = tk.Button(self, text="Render", command=self.render)
+        # save .bat file
+        render_button = tk.Button(
+            self, text="Save .bat file", command=self.save_bat_file
+        )
         render_button.grid(row=12, column=0, padx=5, sticky="nesw")
 
         # exit
-        exit_button = tk.Button(self, text="Exit", command=self.exit_prog)
+        exit_button = tk.Button(self, text="Exit", command=exit)
         exit_button.grid(row=12, column=1, sticky="nesw", columnspan=2, padx=2)
 
     def create_blender_exe_entry(self):
@@ -132,6 +132,8 @@ class ClematisRender(tk.Tk):
         edit_button.grid(row=7, column=2, sticky="nesw", padx=2)
 
     def edit_shot(self):
+        if not self.tree.selection():
+            return
         selected_item = self.tree.selection()[0]
         (name, file_name, start_frame, end_frame, output_folder, file_format) = (
             self.tree.item(selected_item)["values"]
@@ -155,7 +157,7 @@ class ClematisRender(tk.Tk):
             self.tree.delete(selected_item)
 
     def create_console_log(self):
-        self.scroll_text = ScrolledText(self, width=65, height=20)
+        self.scroll_text = ScrolledText(self, width=65, height=7)
         self.scroll_text.grid(
             row=11, column=0, columnspan=3, pady=5, padx=5, sticky="nesw"
         )
@@ -196,7 +198,7 @@ class ClematisRender(tk.Tk):
     def get_format_dict(self):
         return format_dict
 
-    def render(self):
+    def save_bat_file(self):
         if not ((self.exe_entry.get()) and os.path.exists(self.exe_entry.get())):
             tk.messagebox.showwarning(
                 title="Path Error",
@@ -204,9 +206,12 @@ class ClematisRender(tk.Tk):
             )
             return
 
-        self.scroll_text["state"] = "normal"
-        self.scroll_text.insert(tk.END, "Start...\n")
-        self.scroll_text["state"] = "disabled"
+        if not self.tree.get_children():
+            tk.messagebox.showwarning(
+                title="Shot Error",
+                message="You haven't add any shots",
+            )
+            return
 
         command = []
         # (name, file_name, start_frame, end_frame, output_folder, format)
@@ -225,6 +230,13 @@ class ClematisRender(tk.Tk):
             command.append(f"    GOTO:SHOT_{i + 1}\n")
             command.append(")\n")
             command.append(
+                (
+                    "call writeLog\necho %date% %time%: Start render Shot: "
+                    f"{values[0]} {values[1]} ({values[2]} to {values[3]}) at {values[4]}[.{values[5]}]"
+                    ">> %filename%\n"
+                )
+            )
+            command.append(
                 '"{}" -b "{}" -o {}/ -F {} -s {} -e {} -a\n'.format(
                     self.exe_entry.get().replace("\x08", r"\b"),
                     values[1].replace("\x08", r"\b"),
@@ -238,44 +250,59 @@ class ClematisRender(tk.Tk):
 
         command.append(f":SHOT_{len(self.tree.get_children())}\n")
         command.append(
-            "ECHO ------------------------ RENDER FINISH --------------------------\n"
+            "ECHO ------ RENDER FINISH ------\n ECHO You can read log file at %filename%\n"
+        )
+        command.append(
+            (
+                "call writeLog\necho %date% %time%: "
+                "----------------------- FINISH RENDER ---------------------------"
+                ">> %filename%\n"
+            )
         )
         command.append("PAUSE\n")
         command.append("EXIT\n")
 
-        with open("render.bat", "w") as f:
-            f.write("".join(command))
+        files = [
+            ("Batch Files", "*.bat"),
+            ("Text Document", "*.txt"),
+        ]
 
-        try:
-            global process
-            process = subprocess.Popen(
-                ["render.bat"],
-                shell=False,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-            )
-
-            update_th = threading.Thread(target=self.update_text)
-            update_th.daemon = True
-            update_th.start()
-
-        except Exception as e:
-            print(e)
-
-    def update_text(self):
-        while True:
-            output = process.stdout.readline()
-            if output == b"" and process.poll() is not None:
-                break
-            self.scroll_text["state"] = "normal"
-            self.scroll_text.insert(tk.END, output)
-            self.scroll_text.see("end")
-            self.scroll_text["state"] = "disabled"
-
-    def exit_prog(self):
-        if self._process:
-            self._process.kill()
-        exit()
+        f = filedialog.asksaveasfile(
+            mode="w",
+            filetypes=files,
+            defaultextension=files,
+            initialdir=self.save_project_path,
+        )
+        if f is None:
+            return
+        f.write("".join(command))
+        self.scroll_text["state"] = "normal"
+        if not os.path.exists(os.path.join(os.path.dirname(f.name), "writeLog.bat")):
+            with open(
+                os.path.join(os.path.dirname(f.name), "writeLog.bat"), "w"
+            ) as log_f:
+                log_f.write(
+                    (
+                        'for /f "tokens=1-4 delims=/ " %%i in ("%date%") do (\n'
+                        "    set month=%%j\n"
+                        "    set day=%%k\n"
+                        "    set year=%%l\n"
+                        ")\n"
+                        "SET datestr=%day%_%month%_%year%\n"
+                        "SET path=%~dp0\n"
+                        "IF NOT EXIST %path%log (\n"
+                        "   mkdir log\n"
+                        ")\n"
+                        "SET filename=%path%log\\log-%datestr%.txt\n"
+                    )
+                )
+                self.scroll_text.insert(
+                    tk.END, f"Save writeLog.bat file at {log_f.name}\n"
+                )
+                log_f.close()
+        self.scroll_text.insert(tk.END, f"Save .bat file at {f.name}\n")
+        self.scroll_text["state"] = "disabled"
+        f.close()
 
     def add_new_shot(
         self, name, file_name, start_frame, end_frame, output_folder, format
