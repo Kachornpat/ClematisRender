@@ -165,9 +165,9 @@ class ClematisRender(tk.Tk):
         self.scroll_text.update_idletasks()
         self.scroll_text["state"] = "disabled"
 
-    def save_input(self, file_name, section, key, data):
+    def save_input(self, section, key, data):
         parser.set(section, key, data)
-        with open(file_name, "w") as config_file:
+        with open(CONFIG_FILE, "w") as config_file:
             parser.write(config_file)
 
     def browse_exe(self):
@@ -179,11 +179,8 @@ class ClematisRender(tk.Tk):
             self.exe_sv.set(exe_path)
 
     def exe_change_callback(self, *args):
-        self.save_input(CONFIG_FILE, "path", "blender_exe_path", self.exe_sv.get())
+        self.save_input("path", "blender_exe_path", self.exe_sv.get())
         self.save_blender_path = self.exe_sv.get()
-
-    def format_option_change(self, data):
-        self.save_input(CONFIG_FILE, "output", "output_format", data)
 
     def browse_project_folder(self):
         folder_name = filedialog.askdirectory()
@@ -191,9 +188,7 @@ class ClematisRender(tk.Tk):
             self.project_sv.set(folder_name)
 
     def project_entry_callback(self, *args):
-        self.save_input(
-            CONFIG_FILE, "path", "blender_project_path", self.project_sv.get()
-        )
+        self.save_input("path", "blender_project_path", self.project_sv.get())
         self.save_project_path = self.project_sv.get()
 
     def get_format_dict(self):

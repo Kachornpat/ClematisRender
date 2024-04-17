@@ -61,9 +61,13 @@ class ShotDetail(tk.Toplevel):
             self,
             self.format_var,
             *self.master.get_format_dict().keys(),
-            command=self.master.format_option_change
+            command=self.format_option_change
         )
         format_dropdown.grid(row=7, column=2, sticky="nesw")
+
+    def format_option_change(self, *arg):
+        self.master.save_input("output", "output_format", self.format_var.get())
+        self.master.save_output_format = self.format_var.get()
 
     def create_blender_file_entry(self):
         file_label = tk.Label(self, text="Blender file")
