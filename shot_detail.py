@@ -164,7 +164,7 @@ class ShotDetail(tk.Toplevel):
             self.start_entry.delete(0, "end")
             self.end_entry.delete(0, "end")
             self.output_entry.delete(0, "end")
-            self.format_var.set("PNG")
+            self.format_var.set(self.master.save_output_format)
 
     def check(self):
         if not ((self.file_entry.get()) and os.path.exists(self.file_entry.get())):

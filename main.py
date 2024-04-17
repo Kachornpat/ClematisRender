@@ -4,6 +4,7 @@ from tkinter import filedialog
 from tkinter.scrolledtext import ScrolledText
 import os
 from configparser import ConfigParser
+import datetime
 
 from shot_detail import ShotDetail
 
@@ -297,10 +298,13 @@ class ClematisRender(tk.Tk):
                     )
                 )
                 self.scroll_text.insert(
-                    tk.END, f"Save writeLog.bat file at {log_f.name}\n"
+                    tk.END,
+                    f"[{datetime.datetime.now()}] Save writeLog.bat file at {log_f.name}\n",
                 )
                 log_f.close()
-        self.scroll_text.insert(tk.END, f"Save .bat file at {f.name}\n")
+        self.scroll_text.insert(
+            tk.END, f"[{datetime.datetime.now()}] Save .bat file at {f.name}\n"
+        )
         self.scroll_text["state"] = "disabled"
         f.close()
 
