@@ -5,6 +5,7 @@ from tkinter.scrolledtext import ScrolledText
 import os
 from configparser import ConfigParser
 import datetime
+import re
 
 from shot_detail import ShotDetail
 
@@ -40,7 +41,7 @@ class ClematisRender(tk.Tk):
         self.save_project_path = parser.get("path", "blender_project_path")
         self.save_output_format = parser.get("output", "output_format")
         self.title("Clematis Render")
-        self.geometry("800x490")
+        self.geometry("800x360")
         self.update_idletasks()
         self.iconphoto(True, tk.PhotoImage(file="clematis.png"))
         self.grid_columnconfigure(0, weight=1)
@@ -48,17 +49,14 @@ class ClematisRender(tk.Tk):
         self.create_blender_exe_entry()
         self.create_project_entry()
         self.create_shot_treeview()
-        self.create_console_log()
 
-        # save .bat file
-        render_button = tk.Button(
-            self, text="Save .bat file", command=self.save_bat_file
-        )
-        render_button.grid(row=12, column=0, padx=5, sticky="nesw")
+        # render
+        render_button = tk.Button(self, text="Render", command=self.render)
+        render_button.grid(row=8, column=0, padx=5, sticky="nesw")
 
         # exit
         exit_button = tk.Button(self, text="Exit", command=exit)
-        exit_button.grid(row=12, column=1, sticky="nesw", columnspan=2, padx=2)
+        exit_button.grid(row=8, column=1, sticky="nesw", columnspan=2, padx=2)
 
     def create_blender_exe_entry(self):
         exe_label = tk.Label(self, text="Blender executable path")
@@ -97,6 +95,7 @@ class ClematisRender(tk.Tk):
             "end_frame",
             "output_folder",
             "result_format",
+            "progress",
         )
         self.tree = ttk.Treeview(self, columns=columns, show="headings")
 
@@ -112,6 +111,8 @@ class ClematisRender(tk.Tk):
         self.tree.column("output_folder", minwidth=0, width=10)
         self.tree.heading("result_format", text="Format")
         self.tree.column("result_format", minwidth=0, width=60, stretch=tk.NO)
+        self.tree.heading("progress", text="Progress")
+        self.tree.column("progress", minwidth=0, width=90, stretch=tk.NO)
 
         self.tree.grid(row=5, column=0, sticky="we", pady=5, rowspan=3, padx=(5, 0))
         scrollbar = ttk.Scrollbar(self, orient=tk.VERTICAL, command=self.tree.yview)
@@ -153,6 +154,7 @@ class ClematisRender(tk.Tk):
             },
         )
 
+<<<<<<< Updated upstream
     def remove_shot(self):
         for selected_item in self.tree.selection():
             self.tree.delete(selected_item)
@@ -166,6 +168,9 @@ class ClematisRender(tk.Tk):
         self.scroll_text["state"] = "disabled"
 
     def save_input(self, file_name, section, key, data):
+=======
+    def save_input(self, section, key, data):
+>>>>>>> Stashed changes
         parser.set(section, key, data)
         with open(file_name, "w") as config_file:
             parser.write(config_file)
@@ -199,7 +204,8 @@ class ClematisRender(tk.Tk):
     def get_format_dict(self):
         return format_dict
 
-    def save_bat_file(self):
+    def render(self):
+
         if not ((self.exe_entry.get()) and os.path.exists(self.exe_entry.get())):
             tk.messagebox.showwarning(
                 title="Path Error",
@@ -214,99 +220,76 @@ class ClematisRender(tk.Tk):
             )
             return
 
-        command = []
-        # (name, file_name, start_frame, end_frame, output_folder, format)
-        command.append("@echo off\n")
-        for i, item in enumerate(self.tree.get_children()):
-            values = self.tree.item(item)["values"]
-            command.append(f":SHOT_{i}\n")
-            command.append(
-                'IF EXIST "{}" (\n'.format(
-                    values[4]
-                    + "/"
-                    + "{:04d}".format(int(values[3]))
-                    + format_dict.get(values[5])[0],
-                )
-            )
-            command.append(f"    GOTO:SHOT_{i + 1}\n")
-            command.append(")\n")
-            command.append(
-                (
-                    "call writeLog\necho %date% %time%: Start render Shot: "
-                    f"{values[0]} {values[1]} ({values[2]} to {values[3]}) at {values[4]}[.{values[5]}]"
-                    ">> %filename%\n"
-                )
-            )
-            command.append(
-                '"{}" -b "{}" -o {}/ -F {} -s {} -e {} -a\n'.format(
-                    self.exe_entry.get().replace("\x08", r"\b"),
-                    values[1].replace("\x08", r"\b"),
-                    values[4],
-                    format_dict.get(values[5])[1],
-                    int(values[2]),
-                    int(values[3]),
-                )
-            )
-            command.append(f"GOTO:SHOT_{i}\n")
+        queue_list = os.listdir("./queue")
+        latest_queue: int = 1
+        if queue_list:
+            for queue in queue_list:
+                result = re.findall(r"SHOT_(\d*).*", queue)
+                if result:
+                    shot_number = int(result[0])
+                    if shot_number > latest_queue:
+                        latest_queue = shot_number
 
-        command.append(f":SHOT_{len(self.tree.get_children())}\n")
-        command.append(
-            "ECHO ------ RENDER FINISH ------\n ECHO You can read log file at %filename%\n"
-        )
-        command.append(
-            (
+        # (name, file_name, start_frame, end_frame, output_folder, format)
+        self.scroll_text["state"] = "normal"
+        for i, item in enumerate(self.tree.get_children()):
+            created_shot_number = latest_queue + i
+            values = self.tree.item(item)["values"]
+            delete_cmd = (
+                f"del SHOT_{ created_shot_number}.bat"
+                if created_shot_number > 1
+                else ""
+            )
+            command = (
+                f"@echo off\n:SHOT_{created_shot_number}\n"
+                f"{delete_cmd}\n"
+                f'IF EXIST "{values[4] + "/" + "{:04d}".format(int(values[3])) + format_dict.get(values[5])[0]}" (\n'
+                f"    call SHOT_{created_shot_number + 1}\n"
+                ")\n"
+                "call writeLog\n"
+                "echo %date% %time%: Start render Shot: "
+                f"{values[0]} {values[1]} ({values[2]} to {values[3]}) at {values[4]}[.{values[5]}]"
+                ">> %filename%\n"
+                f'"{self.exe_entry.get().replace("\x08", r"\b")}"'
+                f' -b "{values[1].replace("\x08", r"\b")}"'
+                f" -o {values[4]}/"
+                f" -F {format_dict.get(values[5])[1]}"
+                f" -s {int(values[2])}"
+                f" -e {int(values[3])} -a\n"
+                f"GOTO:SHOT_{created_shot_number}\n"
+            )
+            with open(f"./queue/SHOT_{created_shot_number}.bat", "w") as shot_f:
+                shot_f.write(command)
+                self.scroll_text.insert(
+                    tk.END,
+                    f"[{datetime.datetime.now()}] Shot: {values[0]} is queued already [ SHOT_{created_shot_number} ]\n",
+                )
+                shot_f.close()
+
+        with open(
+            f"./queue/SHOT_{latest_queue + len(self.tree.get_children())}.bat", "w"
+        ) as end_f:
+            end_f.write(
+                f"del SHOT_{latest_queue + len(self.tree.get_children()) - 1}.bat\n"
+                "ECHO ------ RENDER FINISH ------\nECHO You can read log file at %filename%\n"
                 "call writeLog\necho %date% %time%: "
                 "----------------------- FINISH RENDER ---------------------------"
                 ">> %filename%\n"
+                "PAUSE\n"
+                f"del SHOT_{latest_queue + len(self.tree.get_children())}.bat\n"
+                "EXIT\n"
             )
-        )
-        command.append("PAUSE\n")
-        command.append("EXIT\n")
-
-        files = [
-            ("Batch Files", "*.bat"),
-            ("Text Document", "*.txt"),
-        ]
-
-        f = filedialog.asksaveasfile(
-            mode="w",
-            filetypes=files,
-            defaultextension=files,
-            initialdir=self.save_project_path,
-        )
-        if f is None:
-            return
-        f.write("".join(command))
-        self.scroll_text["state"] = "normal"
-        if not os.path.exists(os.path.join(os.path.dirname(f.name), "writeLog.bat")):
-            with open(
-                os.path.join(os.path.dirname(f.name), "writeLog.bat"), "w"
-            ) as log_f:
-                log_f.write(
-                    (
-                        'for /f "tokens=1-4 delims=/ " %%i in ("%date%") do (\n'
-                        "    set month=%%j\n"
-                        "    set day=%%k\n"
-                        "    set year=%%l\n"
-                        ")\n"
-                        "SET datestr=%day%_%month%_%year%\n"
-                        "SET path=%~dp0\n"
-                        "IF NOT EXIST %path%log (\n"
-                        "   mkdir log\n"
-                        ")\n"
-                        "SET filename=%path%log\\log-%datestr%.txt\n"
-                    )
-                )
-                self.scroll_text.insert(
-                    tk.END,
-                    f"[{datetime.datetime.now()}] Save writeLog.bat file at {log_f.name}\n",
-                )
-                log_f.close()
-        self.scroll_text.insert(
-            tk.END, f"[{datetime.datetime.now()}] Save .bat file at {f.name}\n"
-        )
+            end_f.close()
         self.scroll_text["state"] = "disabled"
-        f.close()
+
+        # clear tree view
+        for deleted_item in self.tree.get_children():
+            self.tree.delete(deleted_item)
+
+        if os.path.exists("./queue/SHOT_1.bat"):
+            os.chdir("./queue")
+            os.system("start SHOT_1.bat")
+            os.chdir("../")
 
     def add_new_shot(
         self, name, file_name, start_frame, end_frame, output_folder, format
@@ -331,6 +314,10 @@ class ClematisRender(tk.Tk):
             selected_item,
             values=(name, file_name, start_frame, end_frame, output_folder, format),
         )
+
+    def remove_shot(self):
+        for selected_item in self.tree.selection():
+            self.tree.delete(selected_item)
 
 
 if __name__ == "__main__":
