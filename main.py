@@ -5,6 +5,9 @@ from tkinter.scrolledtext import ScrolledText
 import os
 from configparser import ConfigParser
 import datetime
+import json
+import re
+import threading
 
 from shot_detail import ShotDetail
 
@@ -50,10 +53,8 @@ class ClematisRender(tk.Tk):
         self.create_shot_treeview()
         self.create_console_log()
 
-        # save .bat file
-        render_button = tk.Button(
-            self, text="Save .bat file", command=self.save_bat_file
-        )
+        # Render
+        render_button = tk.Button(self, text="Render", command=self.render)
         render_button.grid(row=12, column=0, padx=5, sticky="nesw")
 
         # exit
@@ -118,6 +119,14 @@ class ClematisRender(tk.Tk):
         self.tree.configure(yscroll=scrollbar.set)
         scrollbar.grid(row=5, column=1, sticky="ns", rowspan=3, padx=(0, 2))
 
+        data = self.read_queue_json()
+        for queue in data:
+            self.tree.insert(
+                "",
+                tk.END,
+                values=queue,
+            )
+
         # add new shot
         new_button = tk.Button(
             self, text="New", command=lambda: ShotDetail(self, "New Shot")
@@ -156,6 +165,7 @@ class ClematisRender(tk.Tk):
     def remove_shot(self):
         for selected_item in self.tree.selection():
             self.tree.delete(selected_item)
+        self.delete_queue_json(selected_item)
 
     def create_console_log(self):
         self.scroll_text = ScrolledText(self, width=65, height=7)
@@ -194,7 +204,7 @@ class ClematisRender(tk.Tk):
     def get_format_dict(self):
         return format_dict
 
-    def save_bat_file(self):
+    def render(self):
         if not ((self.exe_entry.get()) and os.path.exists(self.exe_entry.get())):
             tk.messagebox.showwarning(
                 title="Path Error",
@@ -214,49 +224,45 @@ class ClematisRender(tk.Tk):
         command.append("@echo off\n")
         for i, item in enumerate(self.tree.get_children()):
             values = self.tree.item(item)["values"]
-            command.append(f":SHOT_{i}\n")
-            command.append(
-                'IF EXIST "{}" (\n'.format(
-                    values[4]
-                    + "/"
-                    + "{:04d}".format(int(values[3]))
-                    + format_dict.get(values[5])[0],
-                )
+            final_path = (
+                values[4]
+                + "/"
+                + "{:04d}".format(int(values[3]))
+                + format_dict.get(values[5])[0]
             )
-            command.append(f"    GOTO:SHOT_{i + 1}\n")
-            command.append(")\n")
+            [blender_exe, file_path, output, format_file, start_frame, end_frame] = [
+                self.exe_entry.get().replace("\x08", r"\b"),
+                values[1].replace("\x08", r"\b"),
+                values[4],
+                format_dict.get(values[5])[1],
+                int(values[2]),
+                int(values[3]),
+            ]
             command.append(
                 (
+                    f":SHOT_{i}\n"
+                    f'IF EXIST "{final_path}" (\n'
+                    f"    GOTO:SHOT_{i + 1}\n"
+                    ")\n"
                     "call writeLog\necho %date% %time%: Start render Shot: "
                     f"{values[0]} {values[1]} ({values[2]} to {values[3]}) at {values[4]}[.{values[5]}]"
                     ">> %filename%\n"
+                    f'"{blender_exe}" -b "{file_path}" -o {output}/ -F {format_file} -s {start_frame} -e {end_frame} -a\n'
+                    f"GOTO:SHOT_{i}\n"
                 )
             )
-            command.append(
-                '"{}" -b "{}" -o {}/ -F {} -s {} -e {} -a\n'.format(
-                    self.exe_entry.get().replace("\x08", r"\b"),
-                    values[1].replace("\x08", r"\b"),
-                    values[4],
-                    format_dict.get(values[5])[1],
-                    int(values[2]),
-                    int(values[3]),
-                )
-            )
-            command.append(f"GOTO:SHOT_{i}\n")
 
-        command.append(f":SHOT_{len(self.tree.get_children())}\n")
-        command.append(
-            "ECHO ------ RENDER FINISH ------\n ECHO You can read log file at %filename%\n"
-        )
         command.append(
             (
+                f":SHOT_{len(self.tree.get_children())}\n"
+                "ECHO ------ RENDER FINISH ------\n ECHO You can read log file at %filename%\n"
                 "call writeLog\necho %date% %time%: "
                 "----------------------- FINISH RENDER ---------------------------"
                 ">> %filename%\n"
+                "PAUSE\n"
+                "EXIT\n"
             )
         )
-        command.append("PAUSE\n")
-        command.append("EXIT\n")
 
         files = [
             ("Batch Files", "*.bat"),
@@ -311,6 +317,16 @@ class ClematisRender(tk.Tk):
             tk.END,
             values=(name, file_name, start_frame, end_frame, output_folder, format),
         )
+        queue_data = [
+            name,
+            file_name,
+            start_frame,
+            end_frame,
+            output_folder,
+            format,
+        ]
+
+        self.write_queue_json(queue_data)
 
     def edit_shot_detail(
         self,
@@ -326,6 +342,44 @@ class ClematisRender(tk.Tk):
             selected_item,
             values=(name, file_name, start_frame, end_frame, output_folder, format),
         )
+        self.edit_queue_json(
+            selected_item,
+            [name, file_name, start_frame, end_frame, output_folder, format],
+        )
+
+    def read_queue_json(self):
+        if os.path.exists("queue.json"):
+            with open("queue.json", "r") as queue_file:
+                data = json.load(queue_file)
+                return data
+        else:
+            return []
+
+    def write_queue_json(self, new_queue):
+        data = self.read_queue_json()
+        data.append(new_queue)
+        with open("queue.json", "w") as queue_file:
+            json.dump(data, queue_file, indent=4)
+
+    def edit_queue_json(self, index, edit_queue):
+        data = self.read_queue_json()
+        target = int(re.search(r"\d+", index)[0]) - 1
+        data[target] = edit_queue
+        with open("queue.json", "w") as queue_file:
+            json.dump(data, queue_file, indent=4)
+
+    def delete_queue_json(self, index):
+        """
+        index: the index of treeview, ex: I001
+        """
+        data = self.read_queue_json()
+
+        if len(data) == 0:
+            return
+        target = int(re.search(r"\d+", index)[0]) - 1
+        data.pop(target)
+        with open("queue.json", "w") as queue_file:
+            json.dump(data, queue_file, indent=4)
 
 
 if __name__ == "__main__":
